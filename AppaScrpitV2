@@ -1,0 +1,58 @@
+
+function doGet(e) {
+  Logger.log( JSON.stringify(e) );
+  var result = 'Data send OK.';
+  if (e.parameter == 'undefined') {
+    result = 'No Parameters';
+  }
+  else {
+    var sheet_id = 'Google Sheet ID';  // Spreadsheet ID
+    var sheet = SpreadsheetApp.openById(sheet_id).getActiveSheet();
+    var newRow = sheet.getLastRow() + 1;            
+    var rowData = [];
+    var Curr_Date = new Date();
+    rowData[0] = Curr_Date;       // Data in column A
+    for (var param in e.parameter) {
+      Logger.log('In for loop, param=' + param);
+      var value = stripQuotes(e.parameter[param]);
+      Logger.log(param + ':' + e.parameter[param]);
+      switch (param) {
+        case 'ID':
+          rowData[1] = value;       // Data in column B
+          break;
+        case 'data':
+          rowData[2] = value;
+          var data = parseInt(value);
+          let data1 = calmethaneppm(data);
+          rowData[3] = data1;   // Data in column C
+          break;
+      }
+    }
+    Logger.log(JSON.stringify(rowData));
+    var newRange = sheet.getRange(newRow, 1, 1, rowData.length);
+    newRange.setValues([rowData]);
+  }
+  return ContentService.createTextOutput(result);
+}
+function stripQuotes( value ) {
+  return value.replace(/^["']|['"]$/g, "");
+}
+
+function calmethaneppm(adc){
+  var slope = -0.3384580239;
+  var A = 10.36034152;
+  var Rseries = 1000;
+  var V_Rseries = ((adc*2.5)/4096);
+  var Rs = ((5-V_Rseries)/V_Rseries)*Rseries;
+  var R0 = 1809.52;
+  /*
+   * R0 คือ ค่าความต้านทานเซ็นเซอร์ขณะที่แก๊สมีเทนเท่ากับ 1000 ppm
+   * ในอากาศที่สะอาด
+   * ควรปรับจูนด้วยการสอบเทียบกับเซ็นเซอร์มาตรฐาน
+   */
+  var Y = Rs/R0;
+  var AA = Math.log10(Y/A) / slope;
+  var Methane_gas = Math.pow(10, AA);
+  Methane_gas = Number(Methane_gas).toFixed(2);
+  return Methane_gas;
+}
